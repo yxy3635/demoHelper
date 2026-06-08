@@ -1,0 +1,52 @@
+# ===== IDE & Editor =====
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ===== Claude =====
+.claude/
+
+# ===== Node.js (Frontend - demoHelper) =====
+node_modules/
+dist/
+*.local
+.env
+.env.*
+!.env.example
+
+# ===== Java (Backend) =====
+target/
+*.class
+*.jar
+*.war
+*.nar
+*.ear
+*.log
+*.tmp
+
+# Maven
+.mvn/wrapper/maven-wrapper.jar
+.mvn/wrapper/maven-wrapper.properties
+
+# Gradle
+.gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# Spring Boot
+HELP.md
+
+# ===== Package Manager =====
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# ===== Misc =====
+*.bak
+*.cache
