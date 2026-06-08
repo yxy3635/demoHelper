@@ -6,8 +6,10 @@ import com.qzcy.backend.entity.GenerationHistory;
 import com.qzcy.backend.service.GenerateService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 
@@ -22,7 +24,7 @@ public class GenerateController {
     }
 
     /**
-     * Generate a development plan from user intent.
+     * Generate a development plan from user intent (blocking).
      */
     @PostMapping("/generate")
     public ResponseEntity<GenerateResponse> generate(@Valid @RequestBody GenerateRequest request) {
@@ -34,12 +36,32 @@ public class GenerateController {
     }
 
     /**
+     * Generate a development plan with real-time progress via SSE.
+     * Emits "progress" events (step 0/1/2/3) then a "result" event with JSON.
+     */
+    @PostMapping(value = "/generate/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter generateStream(@Valid @RequestBody GenerateRequest request) {
+        SseEmitter emitter = new SseEmitter(300_000L);
+
+        if (!request.isValid()) {
+            try {
+                emitter.send(SseEmitter.event()
+                        .name("error")
+                        .data("{\"message\":\"请至少输入文字描述或上传一张图片\"}"));
+                emitter.complete();
+            } catch (java.io.IOException ignored) { }
+            return emitter;
+        }
+
+        return generateService.generateStream(request);
+    }
+
+    /**
      * List all past generations (summary only, no full JSON).
      */
     @GetMapping("/history")
     public ResponseEntity<List<GenerationHistory>> getHistory() {
         List<GenerationHistory> history = generateService.getHistory();
-        // Strip heavy response_json payload from list view
         history.forEach(h -> h.setResponseJson(null));
         return ResponseEntity.ok(history);
     }

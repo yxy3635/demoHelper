@@ -1,10 +1,9 @@
 <script setup lang="ts">
-interface Props { label?: string }
-withDefaults(defineProps<Props>(), { label: '加载中...' })
+// Pure wave animation — progress text lives in the parent.
 </script>
 
 <template>
-  <div class="loading-wrapper" role="status" :aria-label="label">
+  <div class="loading-wrapper" role="status" aria-label="加载中">
     <div class="wave-container">
       <div class="wave"></div>
       <div class="wave"></div>
@@ -17,7 +16,6 @@ withDefaults(defineProps<Props>(), { label: '加载中...' })
       <div class="wave"></div>
       <div class="wave"></div>
     </div>
-    <span v-if="label" class="loading-label">{{ label }}</span>
   </div>
 </template>
 
@@ -27,8 +25,6 @@ withDefaults(defineProps<Props>(), { label: '加载中...' })
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--space-lg);
-  padding: var(--space-2xl);
 }
 
 .wave-container {
@@ -38,11 +34,11 @@ withDefaults(defineProps<Props>(), { label: '加载中...' })
 }
 
 .wave {
-  width: 1.8rem;
-  height: 150px;
+  width: 1.2rem;
+  height: 100px;
   background-color: #ff6b6b;
-  margin: 0 4px;
-  border-radius: 0.4rem;
+  margin: 0 3px;
+  border-radius: 0.3rem;
   animation: wave 1.5s linear infinite;
   transform-origin: center;
 }
@@ -78,10 +74,5 @@ withDefaults(defineProps<Props>(), { label: '加载中...' })
     transform: scale(0);
     filter: hue-rotate(0deg) blur(0);
   }
-}
-
-.loading-label {
-  color: var(--text);
-  font-size: var(--font-sm);
 }
 </style>

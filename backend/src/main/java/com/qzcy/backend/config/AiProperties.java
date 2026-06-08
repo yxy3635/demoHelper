@@ -3,24 +3,20 @@ package com.qzcy.backend.config;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * Provider selection.  Actual API keys / model settings are managed by
- * Spring AI auto-configuration ({@code spring.ai.anthropic.*} /
- * {@code spring.ai.openai.*}).
+ * Server-side AI defaults.  When the user provides their own API key via the
+ * frontend settings panel, those values take precedence.
  */
 @ConfigurationProperties(prefix = "ai")
 public record AiProperties(
-        Provider provider,
-        String defaultSystemPrompt
+        String provider,
+        String defaultSystemPrompt,
+        String apiKey,
+        String baseUrl,
+        String model
 ) {
-    public enum Provider {
-        anthropic,
-        openai,
-        deepseek
-    }
-
     public AiProperties {
-        if (provider == null) {
-            provider = Provider.deepseek;
+        if (provider == null || provider.isBlank()) {
+            provider = "deepseek";
         }
         if (defaultSystemPrompt == null || defaultSystemPrompt.isBlank()) {
             defaultSystemPrompt = """
@@ -42,15 +38,25 @@ public record AiProperties(
                   whole project.
                 - The title and all content MUST be in Chinese (Simplified / 简体中文).
 
-                Default to a React + TypeScript stack unless the user specifies \
-                otherwise. Prefer Vite over CRA. Prefer Tailwind CSS for styling. \
-                Prefer Firebase/Supabase for quick backends.
+                Default to a Vue 3 + TypeScript stack unless the user specifies \
+                otherwise. Prefer Vite. Prefer Tailwind CSS for styling. \
+                Prefer Spring Boot for backends.
 
-                IMPORTANT: You must output ONLY valid JSON without any markdown \
-                code fences (no ```json blocks). The response must be a single \
-                JSON object with title, description, and sections fields. \
-                All Chinese characters inside JSON string values must be properly \
-                escaped according to the JSON standard.
+                MODIFICATION REQUESTS: If the user's message starts with **修改请求** \
+                or contains modification instructions, you MUST still output a complete \
+                plan. Do NOT ask clarifying questions or request more information — \
+                the user has already provided their original project description and \
+                previous plan in the message. Simply regenerate the entire plan with \
+                the requested modifications applied.
+
+                CRITICAL — OUTPUT FORMAT: You must respond with ONLY a valid JSON \
+                object. No markdown code fences, no explanation text before or after. \
+                The response must be EXACTLY:
+
+                {"title":"...","description":"...","sections":[{"title":"...","description":"...","prompt":"...","estimatedHours":N,"difficulty":"beginner|intermediate|advanced"}]}
+
+                Do NOT include any text before or after the JSON. The very first \
+                character of your response must be { and the very last must be }.
                 """;
         }
     }

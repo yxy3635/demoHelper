@@ -3,6 +3,10 @@
 export interface GenerateRequest {
   intentText?: string
   imageBase64?: string
+  apiKey?: string
+  baseUrl?: string
+  model?: string
+  provider?: string
 }
 
 export interface GenerateResponse {
