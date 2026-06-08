@@ -1,10 +1,10 @@
 # VibeCoding Assistant — AI 驱动的开发计划生成器
 
-将自然语言的项目意图转化为结构化的开发计划，包含可直接复制粘贴的 AI 编码提示词。
+将自然语言的项目意图转化为结构化的开发计划，每个章节都包含**可直接复制粘贴**的 AI 编码提示词。
 
 **前端**: Vue 3 + TypeScript + Vite  
-**后端**: Spring Boot 4.0 + Spring AI 2.0  
-**AI**: Anthropic Claude / OpenAI / DeepSeek（可切换）
+**后端**: Spring Boot + 直接 HTTP 调用 OpenAI 兼容 API  
+**AI**: 用户在界面中配置自己的 API Key（DeepSeek / OpenAI / 自定义兼容端点）
 
 ---
 
@@ -16,22 +16,17 @@
 |------|------|
 | JDK | 21+ |
 | Node.js | 18+ |
-| Maven | 3.9+（已内置 wrapper） |
 
 ### 1. 启动后端
 
 ```bash
 cd backend
-
-# 设置 API Key（三选一）
-set DEEPSEEK_API_KEY=sk-your-key-here        # Windows
-# export DEEPSEEK_API_KEY=sk-your-key-here   # Linux/macOS
-
-# 启动（默认 deepseek provider，H2 内存库）
 ./mvnw spring-boot:run
 ```
 
-后端运行在 `http://localhost:8080`。
+后端默认运行在 `http://localhost:8080`（H2 内存数据库，无需额外配置）。
+
+> **注意**：后端不再硬编码 API Key。AI 调用的 Key 由用户在界面中配置。
 
 ### 2. 启动前端
 
@@ -41,57 +36,35 @@ npm install
 npm run dev
 ```
 
-前端运行在 `http://localhost:5173`，Vite 自动将 `/api` 请求代理到后端。
+前端运行在 `http://localhost:5173`，Vite 自动代理 `/api` 到后端。
+
+### 3. 配置 API Key
+
+打开 `http://localhost:5173`，点击**右上角齿轮图标**进入设置：
+
+1. 选择服务商（DeepSeek / OpenAI / 自定义）
+2. 填入 API Key
+3. 接口地址和模型会自动填充，也可手动修改
+4. 点击保存
+
+配置存储在浏览器 `localStorage` 中，不会上传到服务器。
 
 ---
 
-## AI Provider 切换
+## 使用方式
 
-编辑 `backend/src/main/resources/application.properties`：
+### 生成计划
 
-### DeepSeek（默认）
+1. 在输入框中描述你的项目需求（越详细越好）
+2. 可选：填写项目名称、技术栈偏好、上传参考图片
+3. 点击"生成开发计划"
+4. 等待 AI 生成——页面会显示**实时进度步骤**和等待时间
+5. 生成完成后可切换视图：卡片 / Markdown / JSON
+6. 点击「复制全部提示词」即可逐节粘贴到 AI 编码工具中使用
 
-```properties
-ai.provider=deepseek
-spring.ai.deepseek.api-key=${DEEPSEEK_API_KEY:sk-...}
-spring.ai.deepseek.base-url=${DEEPSEEK_BASE_URL:https://api.deepseek.com}
-spring.ai.deepseek.chat.options.model=deepseek-chat
-```
+### 修改计划
 
-### Anthropic Claude
-
-```properties
-ai.provider=anthropic
-spring.ai.anthropic.api-key=${ANTHROPIC_API_KEY:sk-ant-...}
-spring.ai.anthropic.base-url=${ANTHROPIC_BASE_URL:https://api.anthropic.com}
-spring.ai.anthropic.chat.options.model=claude-sonnet-4-6
-```
-
-### OpenAI
-
-```properties
-ai.provider=openai
-spring.ai.openai.api-key=${OPENAI_API_KEY:sk-...}
-spring.ai.openai.base-url=${OPENAI_BASE_URL:https://api.openai.com}
-spring.ai.openai.chat.options.model=gpt-4o
-```
-
-### 使用代理 / 兼容 API
-
-修改 `base-url` 即可对接任意兼容端点，例如 Anthropic 格式的代理：
-
-```properties
-ai.provider=anthropic
-spring.ai.anthropic.base-url=https://your-proxy.com
-```
-
-### 调整超时
-
-如果模型响应较慢（尤其是大项目计划），可以增加超时：
-
-```properties
-spring.ai.deepseek.chat.options.timeout=600s   # 10 分钟
-```
+生成结果后，右侧会出现「调整计划」面板。输入修改意见（如"使用 PostgreSQL 替代 MySQL"），AI 会在**保留原始需求上下文**的基础上重新生成完整计划。
 
 ---
 
@@ -100,38 +73,35 @@ spring.ai.deepseek.chat.options.timeout=600s   # 10 分钟
 ```
 demoHelper/
 ├── backend/                          # Spring Boot 后端
-│   ├── pom.xml                       # 依赖（Spring AI starter）
+│   ├── pom.xml                       # Spring AI OpenAI starter
 │   └── src/main/java/com/qzcy/backend/
 │       ├── BackendApplication.java
 │       ├── config/
-│       │   ├── AiProperties.java     # Provider 选择 & 系统提示词
+│       │   ├── AiProperties.java     # 系统提示词
 │       │   └── WebConfig.java        # CORS
 │       ├── controller/
-│       │   └── GenerateController.java  # REST API
-│       ├── dto/                      # 请求/响应 DTO
-│       ├── entity/                   # JPA 实体
+│       │   └── GenerateController.java  # REST + SSE 端点
+│       ├── dto/                      # GenerateRequest / GenerateResponse 等
+│       ├── entity/                   # GenerationHistory（JPA）
 │       ├── exception/                # 全局异常处理
 │       ├── repository/               # Spring Data JPA
 │       └── service/
-│           ├── PlanGenerator.java            # Provider 抽象接口
-│           ├── AnthropicPlanGenerator.java   # Anthropic 实现
-│           ├── OpenAiPlanGenerator.java      # OpenAI 实现
-│           ├── DeepSeekPlanGenerator.java    # DeepSeek 实现
-│           ├── GenerateService.java          # 业务编排
-│           └── PlanOutputHelper.java         # JSON 容错解析 + Tool 定义
+│           ├── GenerateService.java      # 业务编排（含 SSE 流式响应）
+│           ├── DirectAiClient.java       # 直接 HTTP 调用 AI API
+│           └── PlanOutputHelper.java     # JSON 容错解析 + 进度回调
 │
 ├── demoHelper/                       # Vue 3 前端
-│   ├── vite.config.ts                # Vite + API 代理配置
+│   ├── vite.config.ts                # Vite + API 代理
 │   └── src/
-│       ├── App.vue                   # 主布局
+│       ├── App.vue                   # 条件布局（首次居中 / 修改分栏）
 │       ├── components/
-│       │   ├── input/                # 输入表单
-│       │   ├── output/               # 结果展示（卡片/JSON/Markdown）
-│       │   ├── layout/               # 布局组件
-│       │   └── shared/               # 通用组件（错误/加载/复制按钮）
-│       ├── composables/              # useGenerator, useApi, useExport
+│       │   ├── input/                # GuidedInput（输入表单）
+│       │   ├── output/               # PlanDisplay / PlanSectionCard / ExportBar 等
+│       │   ├── layout/               # AppHeader / ModifyPanel / SettingsModal
+│       │   └── shared/               # LoadingSpinner / ErrorMessage / CopyButton / TabsBar
+│       ├── composables/              # useGenerator / useApi / useSettings / useTheme 等
 │       ├── types/                    # TypeScript 类型定义
-│       └── utils/                    # 校验、格式化、Markdown 渲染
+│       └── utils/                    # 校验 / 格式化 / Markdown 渲染
 │
 └── README.md
 ```
@@ -142,41 +112,27 @@ demoHelper/
 
 ### POST /api/generate
 
-生成开发计划。
+生成开发计划（阻塞式，返回 JSON）。
 
-**请求体**:
-```json
-{
-  "intentText": "我想做一个个人博客，支持 Markdown 编辑和评论功能",
-  "imageBase64": null
-}
+### POST /api/generate/stream
+
+SSE 流式生成，实时推送进度事件：
+
+```
+event: progress
+data: 0
+
+event: progress
+data: 2
+
+event: progress
+data: 3
+
+event: result
+data: {"id":"gen-...","title":"...","sections":[...]}
 ```
 
-**响应**:
-```json
-{
-  "id": "gen-a1b2c3d4",
-  "title": "个人博客全栈应用",
-  "description": "使用 Next.js + Markdown + Supabase 构建功能完整的个人博客...",
-  "sections": [
-    {
-      "id": "sec-1",
-      "order": 1,
-      "title": "项目初始化与开发环境搭建",
-      "description": "创建 Next.js 项目，安装依赖，配置 Tailwind CSS...",
-      "prompt": "我需要你帮我创建一个全新的 Next.js 项目...",
-      "estimatedHours": 2,
-      "difficulty": "beginner"
-    }
-  ],
-  "metadata": {
-    "totalSections": 6,
-    "estimatedTotalHours": 20,
-    "difficulty": "intermediate",
-    "generatedAt": "2026-06-08T10:30:00Z"
-  }
-}
-```
+进度步骤：`0` 开始请求 → `2` 解析结果 → `3` 完成
 
 ### GET /api/history
 
@@ -184,11 +140,68 @@ demoHelper/
 
 ### GET /api/history/{id}
 
-获取单条历史记录详情（含完整 JSON）。
+获取单条历史记录详情。
 
 ### GET /api/health
 
 健康检查。
+
+---
+
+## AI 兼容性
+
+后端通过 `DirectAiClient` 直接调用 OpenAI 兼容的 `/v1/chat/completions` 端点，因此支持：
+
+- **DeepSeek** — `https://api.deepseek.com`（默认）
+- **OpenAI** — `https://api.openai.com`
+- **任意 OpenAI 兼容代理** — 在设置中填写自定义接口地址即可
+
+所有 AI 调用统一使用以下参数：
+
+```json
+{
+  "model": "deepseek-v4-flash",
+  "temperature": 0.7,
+  "messages": [
+    { "role": "system", "content": "<系统提示词>" },
+    { "role": "user", "content": "<用户需求>" }
+  ]
+}
+```
+
+---
+
+## 配置参考
+
+### 服务器环境变量（可选）
+
+如果用户未在界面配置 API Key，后端会回退到以下环境变量：
+
+| 变量 | 说明 | 默认值 |
+|------|------|--------|
+| `AI_API_KEY` | API Key | （空） |
+| `AI_BASE_URL` | 接口地址 | `https://api.deepseek.com` |
+| `AI_MODEL` | 模型 | `deepseek-v4-flash` |
+
+### 数据库
+
+开发环境默认使用 H2 内存数据库。生产环境在 `application-prod.properties` 中配置 MySQL：
+
+```properties
+spring.datasource.url=jdbc:mysql://localhost:3306/demohelper
+spring.datasource.username=root
+spring.datasource.password=your-password
+spring.jpa.hibernate.ddl-auto=update
+```
+
+### 容错 JSON 解析
+
+`PlanOutputHelper.parseLenient()` 自动处理 LLM 响应中常见的格式问题：
+- Markdown 代码块包装（```` ```json ... ``` ````）
+- 未转义的控制字符
+- 尾部逗号
+- 无引号的属性名
+- 响应中混杂的解释文本（自动提取 `{...}` 部分）
 
 ---
 
@@ -198,11 +211,9 @@ demoHelper/
 
 ```bash
 cd backend
-# 使用 MySQL 替代 H2
-./mvnw spring-boot:run -Dspring-boot.run.profiles=prod
+./mvnw package -DskipTests
+java -jar target/backend-*.jar --spring.profiles.active=prod
 ```
-
-编辑 `backend/src/main/resources/application-prod.properties` 配置 MySQL 连接。
 
 ### 前端
 
@@ -211,25 +222,4 @@ cd demoHelper
 npm run build       # 输出到 dist/
 ```
 
-可将 `dist/` 部署到 Nginx，或放入 Spring Boot 的 `src/main/resources/static/` 由后端直接托管。
-
----
-
-## 开发说明
-
-### 添加新的 AI Provider
-
-1. 在 `pom.xml` 中引入对应的 Spring AI starter
-2. 创建 `XxxPlanGenerator implements PlanGenerator`
-3. 在 `application.properties` 中添加配置项
-4. 在 `AiProperties.Provider` 枚举中注册
-
-所有 Provider 共享同一套 `PlanOutputHelper.PlanOutputToolCallback`，通过 tool/function calling 保证结构化输出。
-
-### 容错 JSON 解析
-
-`PlanOutputHelper.parseLenient()` 自动处理 LLM 响应中常见的格式问题：
-- Markdown 代码块包装（```` ```json ... ``` ````）
-- 未转义的控制字符
-- 尾部逗号
-- 无引号的属性名
+将 `dist/` 部署到 Nginx，或放入 Spring Boot 的 `src/main/resources/static/`。
