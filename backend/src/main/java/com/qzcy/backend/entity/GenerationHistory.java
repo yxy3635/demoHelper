@@ -2,14 +2,20 @@ package com.qzcy.backend.entity;
 
 import com.qzcy.backend.dto.Difficulty;
 import jakarta.persistence.*;
+import org.springframework.data.domain.Persistable;
 import java.time.Instant;
 
 /**
  * Persisted generation record so users can revisit past plans.
+ * Implements {@link Persistable} with {@code isNew() == true} so Spring Data
+ * JPA always calls {@code entityManager.persist()} rather than {@code merge()}.
+ * This avoids optimistic-locking / stale-state errors when the primary key is
+ * assigned manually (e.g. {@code gen-<uuid>}) while {@code @GeneratedValue}
+ * is also present.
  */
 @Entity
 @Table(name = "generation_history")
-public class GenerationHistory {
+public class GenerationHistory implements Persistable<String> {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -65,6 +71,21 @@ public class GenerationHistory {
         this.generatedAt = generatedAt;
         this.intentText = intentText;
         this.responseJson = responseJson;
+    }
+
+    // ── Persistable ──
+
+    /**
+     * Always returns {@code true} because the ID is assigned manually from
+     * {@code GenerateResponse.id()} (e.g. {@code gen-<uuid>}) and every
+     * record is new at persist time.  This forces Spring Data JPA to call
+     * {@code entityManager.persist()} instead of {@code merge()}, avoiding
+     * stale-state / optimistic-locking errors caused by the mix of a manual
+     * ID and the {@code @GeneratedValue} annotation.
+     */
+    @Override
+    public boolean isNew() {
+        return true;
     }
 
     // ── Getters / Setters ──
